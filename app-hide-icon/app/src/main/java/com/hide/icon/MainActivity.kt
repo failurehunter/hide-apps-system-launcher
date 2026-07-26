@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity() {
             resolveAttr("colorSecondary"),
             resolveAttr("colorTertiary")
         )
+        swipeRefresh.setProgressBackgroundColorSchemeColor(resolveAttr("colorSurfaceContainerHigh"))
         swipeRefresh.setOnRefreshListener { loadAppsAsync(isRefresh = true) }
 
         adapter = AppAdapter { entry, enabled -> toggleApp(entry, enabled) }
@@ -268,8 +269,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Create NEW entry with toggled hidden — DiffUtil detects the change
+        val toggledPkg = entry.packageName
+        val toggledActivity = entry.activityName
         allApps = allApps.map {
-            if (it.packageName == entry.packageName && it.activityName == entry.activityName) {
+            if (it.packageName == toggledPkg && it.activityName == toggledActivity) {
                 it.copy(hidden = hide)
             } else it
         }
@@ -278,6 +281,16 @@ class MainActivity : AppCompatActivity() {
         )
         submitFilteredList(searchInput.text?.toString() ?: "")
         updateSubtitle(allApps)
+
+        // Smooth-scroll to the toggled item's new position
+        val newPos = allApps.indexOfFirst {
+            it.packageName == toggledPkg && it.activityName == toggledActivity
+        }
+        if (newPos >= 0) {
+            recycler.post {
+                recycler.smoothScrollToPosition(newPos)
+            }
+        }
     }
 
     private fun openLauncherAppInfo() {
