@@ -16,10 +16,13 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.annotation.AttrRes
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DefaultItemAnimator
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.card.MaterialCardView
@@ -28,7 +31,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.snackbar.Snackbar
 import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -49,15 +51,53 @@ class MainActivity : AppCompatActivity() {
         var hidden: Boolean
     )
 
+    private fun themeColor(@AttrRes attr: Int): Int {
+        val typedValue = android.util.TypedValue()
+        theme.resolveAttribute(attr, typedValue, true)
+        return typedValue.data
+    }
+
+    private fun themeColor(ctx: android.content.Context, @AttrRes attr: Int): Int {
+        val typedValue = android.util.TypedValue()
+        ctx.theme.resolveAttribute(attr, typedValue, true)
+        return typedValue.data
+    }
+
+    private fun resolveAttr(name: String): Int {
+        val resId = resources.getIdentifier(name, "attr", packageName)
+        return if (resId != 0) themeColor(resId) else android.graphics.Color.BLACK
+    }
+
+    private fun resolveAttr(ctx: android.content.Context, name: String): Int {
+        val resId = ctx.resources.getIdentifier(name, "attr", ctx.packageName)
+        return if (resId != 0) themeColor(ctx, resId) else android.graphics.Color.BLACK
+    }
+
+    private data class AccentPair(val container: String, val onContainer: String)
+
+    private val accentPalette = listOf(
+        AccentPair("colorPrimaryContainer", "colorOnPrimaryContainer"),
+        AccentPair("colorSecondaryContainer", "colorOnSecondaryContainer"),
+        AccentPair("colorTertiaryContainer", "colorOnTertiaryContainer"),
+    )
+
     private lateinit var toolbar: MaterialToolbar
     private lateinit var progress: View
     private lateinit var emptyText: View
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var recycler: RecyclerView
     private lateinit var searchInput: TextInputEditText
+    private lateinit var adapter: AppAdapter
 
     private var allApps = listOf<AppEntry>()
-    private var adapter: AppAdapter? = null
+
+    private val appDiff = object : DiffUtil.ItemCallback<AppEntry>() {
+        override fun areItemsTheSame(old: AppEntry, new: AppEntry) =
+            old.packageName == new.packageName && old.activityName == new.activityName
+
+        override fun areContentsTheSame(old: AppEntry, new: AppEntry) =
+            old.hidden == new.hidden && old.label == new.label
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (Build.VERSION.SDK_INT >= 31) {
@@ -74,26 +114,30 @@ class MainActivity : AppCompatActivity() {
         searchInput = findViewById(R.id.search_input)
 
         recycler.layoutManager = LinearLayoutManager(this)
-        recycler.itemAnimator?.apply {
+        recycler.itemAnimator = DefaultItemAnimator().apply {
             addDuration = 120L
             removeDuration = 120L
             changeDuration = 150L
-            moveDuration = 120L
+            moveDuration = 220L
+            supportsChangeAnimations = false
         }
 
         setSupportActionBar(toolbar)
 
-        swipeRefresh.setColorSchemeResources(
-            R.color.md_theme_primary,
-            R.color.md_theme_secondary,
-            R.color.md_theme_tertiary
+        swipeRefresh.setColorSchemeColors(
+            resolveAttr("colorPrimary"),
+            resolveAttr("colorSecondary"),
+            resolveAttr("colorTertiary")
         )
         swipeRefresh.setOnRefreshListener { loadAppsAsync(isRefresh = true) }
+
+        adapter = AppAdapter { entry, enabled -> toggleApp(entry, enabled) }
+        recycler.adapter = adapter
 
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                filterList(s?.toString() ?: "")
+                submitFilteredList(s?.toString() ?: "")
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -151,8 +195,7 @@ class MainActivity : AppCompatActivity() {
 
             emptyText.visibility = View.GONE
             recycler.visibility = View.VISIBLE
-            val query = searchInput.text?.toString() ?: ""
-            submitFilteredList(query)
+            submitFilteredList(searchInput.text?.toString() ?: "")
             updateSubtitle(apps)
         }
     }
@@ -180,10 +223,6 @@ class MainActivity : AppCompatActivity() {
             .toList()
     }
 
-    private fun filterList(query: String) {
-        submitFilteredList(query)
-    }
-
     private fun submitFilteredList(query: String) {
         val filtered = if (query.isBlank()) allApps
         else allApps.filter {
@@ -197,10 +236,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             emptyText.visibility = View.GONE
             recycler.visibility = View.VISIBLE
-            adapter = AppAdapter(filtered) { entry, enabled ->
-                toggleApp(entry, enabled)
-            }
-            recycler.adapter = adapter
+            adapter.submitList(filtered)
         }
     }
 
@@ -254,12 +290,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshListAfterToggle() {
-        val query = searchInput.text?.toString() ?: ""
-        // Re-sort: hidden apps to top, then alpha
         allApps = allApps.sortedWith(
             compareByDescending<AppEntry> { it.hidden }.thenBy { it.label.lowercase() }
         )
-        submitFilteredList(query)
+        submitFilteredList(searchInput.text?.toString() ?: "")
         updateSubtitle(allApps)
     }
 
@@ -280,18 +314,14 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
-    private data class AccentPair(val container: Int, val onContainer: Int)
-
-    private val accentPalette = listOf(
-        AccentPair(R.color.md_theme_primaryContainer, R.color.md_theme_onPrimaryContainer),
-        AccentPair(R.color.md_theme_secondaryContainer, R.color.md_theme_onSecondaryContainer),
-        AccentPair(R.color.md_theme_tertiaryContainer, R.color.md_theme_onTertiaryContainer),
-    )
-
     inner class AppAdapter(
-        val items: List<AppEntry>,
         private val onToggle: (AppEntry, Boolean) -> Unit
-    ) : RecyclerView.Adapter<AppAdapter.VH>() {
+    ) : ListAdapter<AppEntry, AppAdapter.VH>(appDiff) {
+
+        init { setHasStableIds(true) }
+
+        override fun getItemId(position: Int): Long =
+            getItem(position).packageName.hashCode().toLong()
 
         inner class VH(inflater: LayoutInflater, parent: ViewGroup) :
             RecyclerView.ViewHolder(inflater.inflate(R.layout.item_app, parent, false)) {
@@ -306,20 +336,20 @@ class MainActivity : AppCompatActivity() {
             VH(LayoutInflater.from(parent.context), parent)
 
         override fun onBindViewHolder(holder: VH, position: Int) {
-            val entry = items[position]
+            val entry = getItem(position)
+            val ctx = holder.itemView.context
             holder.icon.setImageDrawable(entry.icon)
             holder.name.text = entry.label
             holder.pkg.text = entry.packageName
-            val ctx = holder.itemView.context
             if (entry.hidden) {
                 val accent = accentPalette[position % accentPalette.size]
-                holder.card.setCardBackgroundColor(ContextCompat.getColor(ctx, accent.container))
-                holder.name.setTextColor(ContextCompat.getColor(ctx, accent.onContainer))
-                holder.pkg.setTextColor(ContextCompat.getColor(ctx, accent.onContainer))
+                holder.card.setCardBackgroundColor(resolveAttr(ctx, accent.container))
+                holder.name.setTextColor(resolveAttr(ctx, accent.onContainer))
+                holder.pkg.setTextColor(resolveAttr(ctx, accent.onContainer))
             } else {
-                holder.card.setCardBackgroundColor(ContextCompat.getColor(ctx, R.color.md_theme_surface))
-                holder.name.setTextColor(ContextCompat.getColor(ctx, R.color.md_theme_onSurface))
-                holder.pkg.setTextColor(ContextCompat.getColor(ctx, R.color.md_theme_onSurfaceVariant))
+                holder.card.setCardBackgroundColor(resolveAttr(ctx, "colorSurface"))
+                holder.name.setTextColor(resolveAttr(ctx, "colorOnSurface"))
+                holder.pkg.setTextColor(resolveAttr(ctx, "colorOnSurfaceVariant"))
             }
             holder.toggle.setOnCheckedChangeListener(null)
             holder.toggle.isChecked = entry.hidden
@@ -330,7 +360,5 @@ class MainActivity : AppCompatActivity() {
                 holder.toggle.isChecked = !holder.toggle.isChecked
             }
         }
-
-        override fun getItemCount() = items.size
     }
 }
