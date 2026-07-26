@@ -226,6 +226,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun submitFilteredListAnchored(query: String, anchorPkg: String?) {
+        val filtered = if (query.isBlank()) allApps
+        else allApps.filter {
+            it.label.contains(query, ignoreCase = true) ||
+                it.packageName.contains(query, ignoreCase = true)
+        }
+
+        if (filtered.isEmpty() && allApps.isNotEmpty()) {
+            emptyText.visibility = View.VISIBLE
+            recycler.visibility = View.GONE
+        } else {
+            emptyText.visibility = View.GONE
+            recycler.visibility = View.VISIBLE
+            adapter.submitList(filtered)
+            if (anchorPkg != null) {
+                val anchorPos = filtered.indexOfFirst { it.packageName == anchorPkg }
+                if (anchorPos >= 0) {
+                    recycler.post {
+                        (recycler.layoutManager as LinearLayoutManager)
+                            .scrollToPositionWithOffset(anchorPos, 0)
+                    }
+                }
+            }
+        }
+    }
+
     private fun readHiddenSet(): Set<String> {
         val json = Settings.Secure.getString(contentResolver, HIDDEN_KEY) ?: return emptySet()
         return try {
@@ -277,7 +303,18 @@ class MainActivity : AppCompatActivity() {
         allApps = allApps.sortedWith(
             compareByDescending<AppEntry> { it.hidden }.thenBy { it.label.lowercase() }
         )
-        submitFilteredList(searchInput.text?.toString() ?: "")
+
+        if (!hide) {
+            // Anchoring: find first visible item BEFORE the diff to prevent scroll jump
+            val lm = recycler.layoutManager as LinearLayoutManager
+            val firstVisiblePos = lm.findFirstVisibleItemPosition()
+            val anchorPkg = if (firstVisiblePos >= 0 && firstVisiblePos < adapter.currentList.size) {
+                adapter.currentList[firstVisiblePos].packageName
+            } else null
+            submitFilteredListAnchored(searchInput.text?.toString() ?: "", anchorPkg)
+        } else {
+            submitFilteredList(searchInput.text?.toString() ?: "")
+        }
         updateSubtitle(allApps)
     }
 
