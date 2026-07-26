@@ -1,0 +1,17 @@
+# Build
+build/
+.gradle/
+.kotlin/
+local.properties
+
+# Binaries
+*.apk
+*.jar
+*.dex
+
+# Decompiled (too large)
+*_decompiled/
+
+# OS
+.DS_Store
+Thumbs.db
