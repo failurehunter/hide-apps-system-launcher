@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.HideIcon" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- Variant A: Views + MDC-Android 1.14.0 (final stable for Views).
+         Spring motion, shape-morphing: unavailable in Views — Compose only.
+         Expressive themes and component styles ARE available in 1.14.0. -->
+    <style name="Theme.HideIcon" parent="Theme.Material3Expressive.DayNight.NoActionBar">
         <item name="colorPrimary">@color/md_theme_primary</item>
         <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
         <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>

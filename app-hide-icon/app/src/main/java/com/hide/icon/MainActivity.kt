@@ -62,6 +62,14 @@ class MainActivity : AppCompatActivity() {
         emptyText = findViewById(R.id.empty_text)
         recycler = findViewById(R.id.recycler)
         recycler.layoutManager = LinearLayoutManager(this)
+        // ponytail: explicit DefaultItemAnimator — MDC standard duration (120ms change),
+        // not spring motion (Views limitation, see themes.xml comment)
+        recycler.itemAnimator?.apply {
+            addDuration = 120L
+            removeDuration = 120L
+            changeDuration = 150L
+            moveDuration = 120L
+        }
 
         setSupportActionBar(toolbar)
 
@@ -223,12 +231,27 @@ class MainActivity : AppCompatActivity() {
             holder.icon.setImageDrawable(entry.icon)
             holder.name.text = entry.label
             holder.pkg.text = entry.packageName
-            val bg = if (entry.hidden) {
-                ContextCompat.getColor(holder.itemView.context, R.color.md_theme_tertiaryContainer)
+            if (entry.hidden) {
+                holder.card.setCardBackgroundColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.md_theme_tertiaryContainer)
+                )
+                holder.name.setTextColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.md_theme_onTertiaryContainer)
+                )
+                holder.pkg.setTextColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.md_theme_onTertiaryContainer)
+                )
             } else {
-                ContextCompat.getColor(holder.itemView.context, R.color.md_theme_surface)
+                holder.card.setCardBackgroundColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.md_theme_surface)
+                )
+                holder.name.setTextColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.md_theme_onSurface)
+                )
+                holder.pkg.setTextColor(
+                    ContextCompat.getColor(holder.itemView.context, R.color.md_theme_onSurfaceVariant)
+                )
             }
-            holder.card.setCardBackgroundColor(bg)
             holder.toggle.setOnCheckedChangeListener(null)
             holder.toggle.isChecked = entry.hidden
             holder.toggle.setOnCheckedChangeListener { _, checked ->

@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- M3 spacing scale -->
     <dimen name="spacing_xxs">4dp</dimen>
     <dimen name="spacing_xs">8dp</dimen>
     <dimen name="spacing_s">12dp</dimen>
     <dimen name="spacing_m">16dp</dimen>
     <dimen name="spacing_l">24dp</dimen>
+
+    <!-- M3 shape scale: Large = 16dp -->
     <dimen name="card_corner_radius">16dp</dimen>
+
     <dimen name="card_padding_horizontal">16dp</dimen>
     <dimen name="card_padding_vertical">12dp</dimen>
     <dimen name="icon_size">40dp</dimen>
