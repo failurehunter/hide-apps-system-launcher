@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hide Apps</string>
+    <string name="app_name">Скрыть приложения</string>
+    <string name="toolbar_subtitle_hidden_of_total">%1$d скрыто из %2$d</string>
+    <string name="description_text">Переключите, чтобы скрыть приложение из лаунчера</string>
+    <string name="permission_missing_title">Требуется разрешение</string>
+    <string name="permission_missing_body">Выполните в ADB:\n\nadb shell pm grant com.hide.icon android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="loading">Загрузка…</string>
+    <string name="empty_title">Нет приложений</string>
+    <string name="launcher_restart_snackbar">Нажмите «Принудительная остановка» для лаунчера</string>
+    <string name="launcher_restart_action">Настройки</string>
 </resources>

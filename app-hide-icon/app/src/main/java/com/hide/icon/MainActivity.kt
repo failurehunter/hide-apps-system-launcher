@@ -1,21 +1,30 @@
 package com.hide.icon
 
+import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Switch
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.color.DynamicColors
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -32,26 +41,77 @@ class MainActivity : AppCompatActivity() {
         var hidden: Boolean
     )
 
+    private lateinit var toolbar: MaterialToolbar
+    private lateinit var progress: View
+    private lateinit var emptyText: View
+    private lateinit var recycler: RecyclerView
+    private var adapter: AppAdapter? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        // ponytail: Dynamic Colors guard for API 30 fallback
+        if (Build.VERSION.SDK_INT >= 31) {
+            DynamicColors.applyToActivityIfAvailable(this)
+        }
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar = findViewById(R.id.toolbar)
+        progress = findViewById(R.id.progress)
+        emptyText = findViewById(R.id.empty_text)
+        recycler = findViewById(R.id.recycler)
+        recycler.layoutManager = LinearLayoutManager(this)
+
         setSupportActionBar(toolbar)
 
-        val apps = loadApps()
-        val rv = findViewById<RecyclerView>(R.id.recycler)
-        rv.layoutManager = LinearLayoutManager(this)
-        rv.adapter = AppAdapter(apps) { entry, enabled ->
-            toggleApp(entry, enabled)
+        if (checkSelfPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            showPermissionDialog()
+            return
+        }
+
+        loadAppsAsync()
+    }
+
+    private fun showPermissionDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.permission_missing_title)
+            .setMessage(R.string.permission_missing_body)
+            .setCancelable(false)
+            .setPositiveButton(android.R.string.ok) { _, _ -> finish() }
+            .show()
+    }
+
+    private fun loadAppsAsync() {
+        progress.visibility = View.VISIBLE
+        emptyText.visibility = View.GONE
+        recycler.visibility = View.GONE
+
+        lifecycleScope.launch {
+            val apps = withContext(Dispatchers.Default) { loadApps() }
+            progress.visibility = View.GONE
+
+            if (apps.isEmpty()) {
+                emptyText.visibility = View.VISIBLE
+                recycler.visibility = View.GONE
+                return@launch
+            }
+
+            emptyText.visibility = View.GONE
+            recycler.visibility = View.VISIBLE
+            adapter = AppAdapter(apps) { entry, enabled ->
+                toggleApp(entry, enabled)
+            }
+            recycler.adapter = adapter
+            updateSubtitle(apps)
         }
     }
 
     private fun loadApps(): List<AppEntry> {
         val pm = packageManager
         val hidden = readHiddenSet()
-        val mainIntent = android.content.Intent(android.content.Intent.ACTION_MAIN).apply {
-            addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        val mainIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
         }
         return pm.queryIntentActivities(mainIntent, PackageManager.MATCH_ALL)
             .asSequence()
@@ -85,15 +145,19 @@ class MainActivity : AppCompatActivity() {
         return try { JSONArray(json) } catch (_: Exception) { JSONArray() }
     }
 
+    private fun updateSubtitle(apps: List<AppEntry>) {
+        val hiddenCount = apps.count { it.hidden }
+        toolbar.subtitle = getString(R.string.toolbar_subtitle_hidden_of_total, hiddenCount, apps.size)
+    }
+
     private fun toggleApp(entry: AppEntry, hide: Boolean) {
         val list = readHiddenList()
-        val serial = "0"
 
         if (hide) {
             val obj = JSONObject().apply {
                 put("packageName", entry.packageName)
                 put("activityName", entry.activityName)
-                put("serialNumber", serial)
+                put("serialNumber", "0")
             }
             list.put(obj)
             entry.hidden = true
@@ -116,18 +180,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun restartLauncher() {
+        val apps = adapter?.let { (0 until it.itemCount).map { i -> it.items[i] } } ?: return
+        updateSubtitle(apps)
+
         try {
-            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.parse("package:$LAUNCHER_PKG")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
             }
             startActivity(intent)
-            Toast.makeText(this, "Нажмите «Принудительная остановка»", Toast.LENGTH_LONG).show()
+            Snackbar.make(findViewById(android.R.id.content), R.string.launcher_restart_snackbar, Snackbar.LENGTH_LONG)
+                .setAction(R.string.launcher_restart_action) {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:$LAUNCHER_PKG")
+                    })
+                }
+                .show()
         } catch (_: Exception) {}
     }
 
     inner class AppAdapter(
-        private val items: List<AppEntry>,
+        val items: List<AppEntry>,
         private val onToggle: (AppEntry, Boolean) -> Unit
     ) : RecyclerView.Adapter<AppAdapter.VH>() {
 
@@ -136,7 +209,7 @@ class MainActivity : AppCompatActivity() {
             val icon: ImageView = itemView.findViewById(R.id.app_icon)
             val name: TextView = itemView.findViewById(R.id.app_name)
             val pkg: TextView = itemView.findViewById(R.id.app_package)
-            val toggle: Switch = itemView.findViewById(R.id.app_toggle)
+            val toggle: MaterialSwitch = itemView.findViewById(R.id.app_toggle)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =

@@ -4,5 +4,22 @@
     <color name="md_theme_onPrimary">#FFFFFFFF</color>
     <color name="md_theme_primaryContainer">#FFEADDFF</color>
     <color name="md_theme_onPrimaryContainer">#FF21005D</color>
+    <color name="md_theme_secondary">#FF625B71</color>
+    <color name="md_theme_onSecondary">#FFFFFFFF</color>
+    <color name="md_theme_secondaryContainer">#FFE8DEF8</color>
+    <color name="md_theme_onSecondaryContainer">#FF1D192B</color>
+    <color name="md_theme_tertiary">#FF7D5260</color>
+    <color name="md_theme_onTertiary">#FFFFFFFF</color>
+    <color name="md_theme_tertiaryContainer">#FFFFD8E4</color>
+    <color name="md_theme_onTertiaryContainer">#FF31111D</color>
+    <color name="md_theme_error">#FFB3261E</color>
+    <color name="md_theme_onError">#FFFFFFFF</color>
+    <color name="md_theme_errorContainer">#FFF9DEDC</color>
+    <color name="md_theme_onErrorContainer">#FF410E0B</color>
     <color name="md_theme_surface">#FFFDF7FF</color>
+    <color name="md_theme_onSurface">#FF1C1B1F</color>
+    <color name="md_theme_onSurfaceVariant">#FF49454F</color>
+    <color name="md_theme_outline">#FF79747E</color>
+    <color name="md_theme_outlineVariant">#FFCAC4D0</color>
+    <color name="md_theme_surfaceVariant">#FFE7E0EC</color>
 </resources>
