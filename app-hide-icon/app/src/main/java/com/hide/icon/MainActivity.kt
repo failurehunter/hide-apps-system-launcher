@@ -16,7 +16,6 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.annotation.AttrRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DefaultItemAnimator
@@ -48,38 +47,24 @@ class MainActivity : AppCompatActivity() {
         val packageName: String,
         val activityName: String,
         val icon: Drawable?,
-        var hidden: Boolean
+        val hidden: Boolean
     )
 
-    private fun themeColor(@AttrRes attr: Int): Int {
-        val typedValue = android.util.TypedValue()
-        theme.resolveAttribute(attr, typedValue, true)
-        return typedValue.data
-    }
-
-    private fun themeColor(ctx: android.content.Context, @AttrRes attr: Int): Int {
-        val typedValue = android.util.TypedValue()
-        ctx.theme.resolveAttribute(attr, typedValue, true)
-        return typedValue.data
-    }
-
     private fun resolveAttr(name: String): Int {
-        val resId = resources.getIdentifier(name, "attr", packageName)
-        return if (resId != 0) themeColor(resId) else android.graphics.Color.BLACK
+        val typedValue = android.util.TypedValue()
+        theme.resolveAttribute(
+            resources.getIdentifier(name, "attr", packageName),
+            typedValue, true
+        )
+        return typedValue.data
     }
 
     private fun resolveAttr(ctx: android.content.Context, name: String): Int {
+        val typedValue = android.util.TypedValue()
         val resId = ctx.resources.getIdentifier(name, "attr", ctx.packageName)
-        return if (resId != 0) themeColor(ctx, resId) else android.graphics.Color.BLACK
+        ctx.theme.resolveAttribute(resId, typedValue, true)
+        return typedValue.data
     }
-
-    private data class AccentPair(val container: String, val onContainer: String)
-
-    private val accentPalette = listOf(
-        AccentPair("colorPrimaryContainer", "colorOnPrimaryContainer"),
-        AccentPair("colorSecondaryContainer", "colorOnSecondaryContainer"),
-        AccentPair("colorTertiaryContainer", "colorOnTertiaryContainer"),
-    )
 
     private lateinit var toolbar: MaterialToolbar
     private lateinit var progress: View
@@ -270,7 +255,7 @@ class MainActivity : AppCompatActivity() {
                 put("serialNumber", "0")
             }
             list.put(obj)
-            entry.hidden = true
+            Settings.Secure.putString(contentResolver, HIDDEN_KEY, list.toString())
         } else {
             val updated = JSONArray()
             for (i in 0 until list.length()) {
@@ -280,16 +265,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             Settings.Secure.putString(contentResolver, HIDDEN_KEY, updated.toString())
-            entry.hidden = false
-            refreshListAfterToggle()
-            return
         }
 
-        Settings.Secure.putString(contentResolver, HIDDEN_KEY, list.toString())
-        refreshListAfterToggle()
-    }
-
-    private fun refreshListAfterToggle() {
+        // Create NEW entry with toggled hidden — DiffUtil detects the change
+        allApps = allApps.map {
+            if (it.packageName == entry.packageName && it.activityName == entry.activityName) {
+                it.copy(hidden = hide)
+            } else it
+        }
         allApps = allApps.sortedWith(
             compareByDescending<AppEntry> { it.hidden }.thenBy { it.label.lowercase() }
         )
@@ -342,10 +325,9 @@ class MainActivity : AppCompatActivity() {
             holder.name.text = entry.label
             holder.pkg.text = entry.packageName
             if (entry.hidden) {
-                val accent = accentPalette[position % accentPalette.size]
-                holder.card.setCardBackgroundColor(resolveAttr(ctx, accent.container))
-                holder.name.setTextColor(resolveAttr(ctx, accent.onContainer))
-                holder.pkg.setTextColor(resolveAttr(ctx, accent.onContainer))
+                holder.card.setCardBackgroundColor(resolveAttr(ctx, "colorSecondaryContainer"))
+                holder.name.setTextColor(resolveAttr(ctx, "colorOnSecondaryContainer"))
+                holder.pkg.setTextColor(resolveAttr(ctx, "colorOnSecondaryContainer"))
             } else {
                 holder.card.setCardBackgroundColor(resolveAttr(ctx, "colorSurface"))
                 holder.name.setTextColor(resolveAttr(ctx, "colorOnSurface"))

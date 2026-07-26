@@ -7,9 +7,13 @@
     <dimen name="spacing_m">16dp</dimen>
     <dimen name="spacing_l">24dp</dimen>
 
+    <!-- Layout tokens -->
+    <dimen name="content_horizontal_margin">16dp</dimen>
+    <dimen name="list_item_vertical_spacing">2dp</dimen>
+    <dimen name="heading_padding_vertical">24dp</dimen>
+
     <!-- M3 shape scale: Large = 16dp -->
     <dimen name="card_corner_radius">16dp</dimen>
-
     <dimen name="card_padding_horizontal">16dp</dimen>
     <dimen name="card_padding_vertical">12dp</dimen>
     <dimen name="icon_size">40dp</dimen>

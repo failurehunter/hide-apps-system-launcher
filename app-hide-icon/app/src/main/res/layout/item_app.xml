@@ -5,13 +5,13 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_marginHorizontal="@dimen/spacing_xs"
-    android:layout_marginVertical="@dimen/spacing_xxs"
+    android:layout_marginHorizontal="@dimen/content_horizontal_margin"
+    android:layout_marginVertical="@dimen/list_item_vertical_spacing"
     android:clickable="true"
     android:focusable="true"
     app:cardCornerRadius="@dimen/card_corner_radius"
     app:cardElevation="0dp"
-    app:strokeWidth="1dp"
+    app:strokeWidth="0.5dp"
     app:strokeColor="?attr/colorOutlineVariant"
     style="@style/Widget.Material3.CardView.Outlined">
 
@@ -48,6 +48,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 tools:text="com.example.app" />
 
         </LinearLayout>
