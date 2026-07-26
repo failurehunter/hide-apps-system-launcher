@@ -14,10 +14,12 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.color.DynamicColors
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -206,6 +208,7 @@ class MainActivity : AppCompatActivity() {
 
         inner class VH(inflater: LayoutInflater, parent: ViewGroup) :
             RecyclerView.ViewHolder(inflater.inflate(R.layout.item_app, parent, false)) {
+            val card: MaterialCardView = itemView as MaterialCardView
             val icon: ImageView = itemView.findViewById(R.id.app_icon)
             val name: TextView = itemView.findViewById(R.id.app_name)
             val pkg: TextView = itemView.findViewById(R.id.app_package)
@@ -220,10 +223,17 @@ class MainActivity : AppCompatActivity() {
             holder.icon.setImageDrawable(entry.icon)
             holder.name.text = entry.label
             holder.pkg.text = entry.packageName
+            val bg = if (entry.hidden) {
+                ContextCompat.getColor(holder.itemView.context, R.color.md_theme_tertiaryContainer)
+            } else {
+                ContextCompat.getColor(holder.itemView.context, R.color.md_theme_surface)
+            }
+            holder.card.setCardBackgroundColor(bg)
             holder.toggle.setOnCheckedChangeListener(null)
             holder.toggle.isChecked = entry.hidden
             holder.toggle.setOnCheckedChangeListener { _, checked ->
                 onToggle(entry, checked)
+                notifyItemChanged(position)
             }
         }
 
