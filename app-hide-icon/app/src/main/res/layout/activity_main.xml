@@ -14,14 +14,29 @@
         app:subtitle="@string/toolbar_subtitle_hidden_of_total"
         app:subtitleTextAppearance="?attr/textAppearanceTitleSmall" />
 
-    <TextView
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/search_layout"
+        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="@dimen/spacing_m"
-        android:paddingVertical="@dimen/spacing_xs"
-        android:text="@string/description_text"
-        android:textAppearance="?attr/textAppearanceBodyMedium"
-        android:textColor="?attr/colorOnSurfaceVariant" />
+        android:layout_marginHorizontal="@dimen/spacing_m"
+        android:layout_marginVertical="@dimen/spacing_xs"
+        android:hint="@string/search_hint"
+        app:startIconDrawable="@android:drawable/ic_menu_search"
+        app:boxCornerRadiusTopStart="@dimen/spacing_s"
+        app:boxCornerRadiusTopEnd="@dimen/spacing_s"
+        app:boxCornerRadiusBottomStart="@dimen/spacing_s"
+        app:boxCornerRadiusBottomEnd="@dimen/spacing_s">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/search_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:maxLines="1"
+            android:imeOptions="actionSearch" />
+
+    </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progress"
@@ -41,12 +56,19 @@
         android:textColor="?attr/colorOnSurfaceVariant"
         android:visibility="gone" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recycler"
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe_refresh"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:clipToPadding="false"
-        android:paddingBottom="@dimen/spacing_m" />
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="@dimen/spacing_m" />
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </LinearLayout>
