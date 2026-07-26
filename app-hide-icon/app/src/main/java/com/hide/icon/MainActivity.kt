@@ -226,32 +226,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun submitFilteredListAnchored(query: String, anchorPkg: String?) {
-        val filtered = if (query.isBlank()) allApps
-        else allApps.filter {
-            it.label.contains(query, ignoreCase = true) ||
-                it.packageName.contains(query, ignoreCase = true)
-        }
-
-        if (filtered.isEmpty() && allApps.isNotEmpty()) {
-            emptyText.visibility = View.VISIBLE
-            recycler.visibility = View.GONE
-        } else {
-            emptyText.visibility = View.GONE
-            recycler.visibility = View.VISIBLE
-            adapter.submitList(filtered)
-            if (anchorPkg != null) {
-                val anchorPos = filtered.indexOfFirst { it.packageName == anchorPkg }
-                if (anchorPos >= 0) {
-                    recycler.post {
-                        (recycler.layoutManager as LinearLayoutManager)
-                            .scrollToPositionWithOffset(anchorPos, 0)
-                    }
-                }
-            }
-        }
-    }
-
     private fun readHiddenSet(): Set<String> {
         val json = Settings.Secure.getString(contentResolver, HIDDEN_KEY) ?: return emptySet()
         return try {
@@ -305,13 +279,41 @@ class MainActivity : AppCompatActivity() {
         )
 
         if (!hide) {
-            // Anchoring: find first visible item BEFORE the diff to prevent scroll jump
+            // Capture anchor: item at the top of the viewport BEFORE the diff
             val lm = recycler.layoutManager as LinearLayoutManager
             val firstVisiblePos = lm.findFirstVisibleItemPosition()
-            val anchorPkg = if (firstVisiblePos >= 0 && firstVisiblePos < adapter.currentList.size) {
+            val firstTop = if (firstVisiblePos >= 0) {
+                lm.findViewByPosition(firstVisiblePos)?.top ?: 0
+            } else 0
+            val anchorPkg = if (firstVisiblePos in adapter.currentList.indices) {
                 adapter.currentList[firstVisiblePos].packageName
             } else null
-            submitFilteredListAnchored(searchInput.text?.toString() ?: "", anchorPkg)
+
+            // Disable animator — prevents DefaultItemAnimator from scrolling
+            // during the move animation (the root cause of the jump)
+            val savedAnimator = recycler.itemAnimator
+            recycler.itemAnimator = null
+            submitFilteredList(searchInput.text?.toString() ?: "")
+
+            // Re-enable animator + anchor scroll after DiffUtil dispatches
+            // (OnPreDraw fires after layout, which fires after dispatch)
+            if (anchorPkg != null) {
+                recycler.viewTreeObserver.addOnPreDrawListener(
+                    object : android.view.ViewTreeObserver.OnPreDrawListener {
+                        override fun onPreDraw(): Boolean {
+                            recycler.viewTreeObserver.removeOnPreDrawListener(this)
+                            val newPos = adapter.currentList.indexOfFirst { it.packageName == anchorPkg }
+                            if (newPos >= 0) {
+                                lm.scrollToPositionWithOffset(newPos, firstTop)
+                            }
+                            recycler.post { recycler.itemAnimator = savedAnimator }
+                            return true
+                        }
+                    }
+                )
+            } else {
+                recycler.post { recycler.itemAnimator = savedAnimator }
+            }
         } else {
             submitFilteredList(searchInput.text?.toString() ?: "")
         }
