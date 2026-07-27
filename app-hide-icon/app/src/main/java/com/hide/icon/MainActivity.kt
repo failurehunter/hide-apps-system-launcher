@@ -268,7 +268,6 @@ class MainActivity : AppCompatActivity() {
             Settings.Secure.putString(contentResolver, HIDDEN_KEY, updated.toString())
         }
 
-        // Create NEW entry with toggled hidden — DiffUtil detects the change
         allApps = allApps.map {
             if (it.packageName == entry.packageName && it.activityName == entry.activityName) {
                 it.copy(hidden = hide)
@@ -278,46 +277,27 @@ class MainActivity : AppCompatActivity() {
             compareByDescending<AppEntry> { it.hidden }.thenBy { it.label.lowercase() }
         )
 
-        if (!hide) {
-            // Capture anchor: item at the top of the viewport BEFORE the diff
-            val lm = recycler.layoutManager as LinearLayoutManager
-            val firstVisiblePos = lm.findFirstVisibleItemPosition()
-            val firstTop = if (firstVisiblePos >= 0) {
-                lm.findViewByPosition(firstVisiblePos)?.top ?: 0
-            } else 0
-            val anchorPkg = if (firstVisiblePos in adapter.currentList.indices) {
-                adapter.currentList[firstVisiblePos].packageName
-            } else null
+        val lm = recycler.layoutManager as LinearLayoutManager
+        val firstVisiblePos = lm.findFirstVisibleItemPosition()
+        val firstTop = if (firstVisiblePos >= 0) {
+            lm.findViewByPosition(firstVisiblePos)?.top ?: 0
+        } else 0
+        val anchorPkg = adapter.currentList.getOrNull(firstVisiblePos)?.packageName
 
-            // Disable animator — prevents DefaultItemAnimator from scrolling
-            // during the move animation (the root cause of the jump)
-            val savedAnimator = recycler.itemAnimator
-            recycler.itemAnimator = null
-            submitFilteredList(searchInput.text?.toString() ?: "")
-
-            // Re-enable animator + anchor scroll after DiffUtil dispatches
-            // (OnPreDraw fires after layout, which fires after dispatch)
-            if (anchorPkg != null) {
-                recycler.viewTreeObserver.addOnPreDrawListener(
-                    object : android.view.ViewTreeObserver.OnPreDrawListener {
-                        override fun onPreDraw(): Boolean {
-                            recycler.viewTreeObserver.removeOnPreDrawListener(this)
-                            val newPos = adapter.currentList.indexOfFirst { it.packageName == anchorPkg }
-                            if (newPos >= 0) {
-                                lm.scrollToPositionWithOffset(newPos, firstTop)
-                            }
-                            recycler.post { recycler.itemAnimator = savedAnimator }
-                            return true
-                        }
-                    }
-                )
-            } else {
-                recycler.post { recycler.itemAnimator = savedAnimator }
-            }
-        } else {
-            submitFilteredList(searchInput.text?.toString() ?: "")
+        val query = searchInput.text?.toString() ?: ""
+        val filtered = if (query.isBlank()) allApps
+        else allApps.filter {
+            it.label.contains(query, ignoreCase = true) ||
+                it.packageName.contains(query, ignoreCase = true)
         }
-        updateSubtitle(allApps)
+
+        adapter.submitList(filtered) {
+            if (anchorPkg != null) {
+                val newPos = adapter.currentList.indexOfFirst { it.packageName == anchorPkg }
+                if (newPos >= 0) lm.scrollToPositionWithOffset(newPos, firstTop)
+            }
+            updateSubtitle(allApps)
+        }
     }
 
     private fun openLauncherAppInfo() {
