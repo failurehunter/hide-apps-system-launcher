@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
@@ -292,22 +293,24 @@ class MainActivity : AppCompatActivity() {
         }
 
         adapter.submitList(filtered) {
+            Log.d("SCROLL", "commit: firstVisible=${lm.findFirstVisibleItemPosition()} " +
+                "firstTop=${lm.findViewByPosition(lm.findFirstVisibleItemPosition())?.top}")
             if (anchorPkg != null) {
                 val newPos = adapter.currentList.indexOfFirst { it.packageName == anchorPkg }
-                if (newPos >= 0) {
-                    lm.scrollToPositionWithOffset(newPos, firstTop)
-                    recycler.viewTreeObserver.addOnPreDrawListener(
-                        object : android.view.ViewTreeObserver.OnPreDrawListener {
-                            override fun onPreDraw(): Boolean {
-                                recycler.viewTreeObserver.removeOnPreDrawListener(this)
-                                lm.scrollToPositionWithOffset(newPos, firstTop)
-                                return true
-                            }
-                        }
-                    )
-                }
+                Log.d("SCROLL", "anchorPkg=$anchorPkg newPos=$newPos target firstTop=$firstTop")
+                if (newPos >= 0) lm.scrollToPositionWithOffset(newPos, firstTop)
             }
             updateSubtitle(allApps)
+
+            recycler.viewTreeObserver.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                var calls = 0
+                override fun onGlobalLayout() {
+                    calls++
+                    Log.d("SCROLL", "layout#$calls firstVisible=${lm.findFirstVisibleItemPosition()} " +
+                        "firstTop=${lm.findViewByPosition(lm.findFirstVisibleItemPosition())?.top}")
+                    if (calls >= 3) recycler.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                }
+            })
         }
     }
 
