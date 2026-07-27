@@ -3,7 +3,12 @@ package com.hide.icon
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.animation.ArgbEvaluator
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -279,7 +284,6 @@ class MainActivity : AppCompatActivity() {
         )
 
         if (!hide) {
-            // Capture anchor: item at the top of the viewport BEFORE the diff
             val lm = recycler.layoutManager as LinearLayoutManager
             val firstVisiblePos = lm.findFirstVisibleItemPosition()
             val firstTop = if (firstVisiblePos >= 0) {
@@ -289,14 +293,10 @@ class MainActivity : AppCompatActivity() {
                 adapter.currentList[firstVisiblePos].packageName
             } else null
 
-            // Disable animator — prevents DefaultItemAnimator from scrolling
-            // during the move animation (the root cause of the jump)
             val savedAnimator = recycler.itemAnimator
             recycler.itemAnimator = null
             submitFilteredList(searchInput.text?.toString() ?: "")
 
-            // Re-enable animator + anchor scroll after DiffUtil dispatches
-            // (OnPreDraw fires after layout, which fires after dispatch)
             if (anchorPkg != null) {
                 recycler.viewTreeObserver.addOnPreDrawListener(
                     object : android.view.ViewTreeObserver.OnPreDrawListener {
@@ -306,18 +306,48 @@ class MainActivity : AppCompatActivity() {
                             if (newPos >= 0) {
                                 lm.scrollToPositionWithOffset(newPos, firstTop)
                             }
-                            recycler.post { recycler.itemAnimator = savedAnimator }
+                            recycler.post {
+                                recycler.itemAnimator = savedAnimator
+                                pulseCard(entry.packageName)
+                            }
                             return true
                         }
                     }
                 )
             } else {
-                recycler.post { recycler.itemAnimator = savedAnimator }
+                recycler.post {
+                    recycler.itemAnimator = savedAnimator
+                    pulseCard(entry.packageName)
+                }
             }
         } else {
             submitFilteredList(searchInput.text?.toString() ?: "")
+            recycler.post { pulseCard(entry.packageName) }
         }
         updateSubtitle(allApps)
+    }
+
+    private fun pulseCard(packageName: String) {
+        val lm = recycler.layoutManager as LinearLayoutManager
+        val first = lm.findFirstVisibleItemPosition()
+        val last = lm.findLastVisibleItemPosition()
+        if (first < 0 || last < 0) return
+        for (pos in first..last) {
+            val vh = recycler.findViewHolderForAdapterPosition(pos) ?: continue
+            if (vh !is AppAdapter.VH) continue
+            val entry = adapter.currentList[pos]
+            if (entry.packageName != packageName) continue
+            val card = vh.card
+            val bg = card.background
+            val baseColor = if (bg is ColorDrawable) bg.color else resolveAttr(card.context, "colorSurface")
+            val pulseColor = resolveAttr(card.context, "colorTertiaryContainer")
+            val animator = ValueAnimator.ofObject(ArgbEvaluator(), baseColor, pulseColor, baseColor)
+            animator.duration = 400
+            animator.interpolator = AccelerateDecelerateInterpolator()
+            animator.addUpdateListener { card.setCardBackgroundColor(it.animatedValue as Int) }
+            animator.start()
+            break
+        }
     }
 
     private fun openLauncherAppInfo() {
