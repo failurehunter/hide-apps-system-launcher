@@ -294,7 +294,18 @@ class MainActivity : AppCompatActivity() {
         adapter.submitList(filtered) {
             if (anchorPkg != null) {
                 val newPos = adapter.currentList.indexOfFirst { it.packageName == anchorPkg }
-                if (newPos >= 0) lm.scrollToPositionWithOffset(newPos, firstTop)
+                if (newPos >= 0) {
+                    lm.scrollToPositionWithOffset(newPos, firstTop)
+                    recycler.viewTreeObserver.addOnPreDrawListener(
+                        object : android.view.ViewTreeObserver.OnPreDrawListener {
+                            override fun onPreDraw(): Boolean {
+                                recycler.viewTreeObserver.removeOnPreDrawListener(this)
+                                lm.scrollToPositionWithOffset(newPos, firstTop)
+                                return true
+                            }
+                        }
+                    )
+                }
             }
             updateSubtitle(allApps)
         }
